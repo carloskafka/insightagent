@@ -2,11 +2,20 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-COPY frontend/package.json .
+# Copia package.json para instalar dependências
+COPY package*.json ./
+
 RUN npm install
 
-COPY frontend/src/ ./src/
+# Copia todo o código fonte (o contexto já é a pasta frontend)
+COPY . .
+
+# Gera o build de produção
+RUN npm run build
+
+# Instala servidor estático
+RUN npm install -g serve
 
 EXPOSE 3000
 
-CMD ["npm", "start"]
+CMD ["serve", "-s", "dist", "-l", "3000"]
