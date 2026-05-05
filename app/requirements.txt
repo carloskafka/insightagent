@@ -4,3 +4,15 @@ uvicorn
 requests
 redis
 pytest
+python-jose[cryptography]
+passlib[bcrypt]
+sqlalchemy
+psycopg2-binary
+pydantic
+email-validator
+qdrant-client
+sentence-transformers
+gtts
+SpeechRecognition
+python-dotenv
+python-multipart
