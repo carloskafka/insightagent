@@ -1,1 +1,1 @@
-# insightagent
+# AI Chatbot Platform
