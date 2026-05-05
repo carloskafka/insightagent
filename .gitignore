@@ -1,32 +1,52 @@
 ```
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
 # Dependencies
+node_modules/
 venv/
 .venv/
-.env
-*.env.*
+__pycache__/
+*.egg-info/
+.cache/
+.mozilla/
+.hugo_build.lock
+
+# Build artifacts
+dist/
+build/
+target/
+.DS_Store
+Thumbs.db
 
 # Logs
 *.log
+logs/
+
+# Environment
+.env
+.env.local
+.env.*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
 
 # Coverage
 .coverage
 coverage/
 htmlcov/
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*.tmp
+# Compiled Python
+*.pyc
+*.pyo
+*.pyd
 
-# OS
-.DS_Store
-Thumbs.db
+# Temporary files
+*.tmp
+*.temp
+*~
 ```
