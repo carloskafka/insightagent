@@ -5,25 +5,50 @@ services:
     build: .
     ports:
       - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/chatbot
+      - REDIS_URL=redis://redis:6379/0
+      - QDRANT_URL=http://qdrant:6333
+      - SECRET_KEY=your-secret-key-change-in-production
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
     depends_on:
       - redis
       - db
       - qdrant
 
   redis:
-    image: redis
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
 
   db:
-    image: postgres
+    image: postgres:15-alpine
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
       POSTGRES_DB: chatbot
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
   qdrant:
-    image: qdrant/qdrant
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
 
   frontend:
     build: ./frontend
     ports:
       - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  qdrant_data:

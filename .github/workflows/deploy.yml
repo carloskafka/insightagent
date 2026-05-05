@@ -3,10 +3,47 @@ name: Deploy
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
+    
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: chatbot_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      qdrant:
+        image: qdrant/qdrant:latest
+        ports:
+          - 6333:6333
+        options: >-
+          --health-cmd "curl -f http://localhost:6333/"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - uses: actions/checkout@v3
@@ -21,6 +58,20 @@ jobs:
 
       - name: Run tests
         run: pytest tests/ -v
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/chatbot_test"
+          REDIS_URL: "redis://localhost:6379/0"
+          QDRANT_URL: "http://localhost:6333"
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          JWT_SECRET: "test-secret-key-for-ci"
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v3
 
       - name: Build Docker image
         run: docker build -t chatbot:latest .
@@ -36,8 +87,35 @@ jobs:
           docker tag chatbot:latest ${{ secrets.DOCKER_USERNAME }}/chatbot:latest
           docker push ${{ secrets.DOCKER_USERNAME }}/chatbot:latest
 
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+        env:
+          KUBECONFIG: ${{ secrets.KUBECONFIG }}
+
+      - name: Create secrets if not exists
+        run: |
+          kubectl create secret generic chatbot-secrets \
+            --from-literal=openrouter-api-key="${{ secrets.OPENROUTER_API_KEY }}" \
+            --from-literal=jwt-secret="${{ secrets.JWT_SECRET }}" \
+            --from-literal=postgres-password="${{ secrets.POSTGRES_PASSWORD }}" \
+            --dry-run=client -o yaml | kubectl apply -f - || true
+
       - name: Deploy to Kubernetes
-        if: github.ref == 'refs/heads/main'
         run: |
           kubectl apply -f k8s/deployment.yaml
           kubectl set image deployment/chatbot-backend backend=${{ secrets.DOCKER_USERNAME }}/chatbot:latest
