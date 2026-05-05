@@ -1,24 +1,12 @@
 ```
 # Dependencies
 node_modules/
-venv/
-.venv/
-__pycache__/
-*.egg-info/
-.cache/
-.mozilla/
-.hugo_build.lock
 
 # Build artifacts
 dist/
 build/
-target/
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-logs/
+coverage/
+htmlcov/
 
 # Environment
 .env
@@ -28,25 +16,24 @@ logs/
 # Editors
 .vscode/
 .idea/
-*.swp
-*.swo
 
-# OS
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg-info/
+.eggs/
+
+# Logs
+*.log
+
+# OS generated files
 .DS_Store
 Thumbs.db
 
 # Coverage
 .coverage
-coverage/
-htmlcov/
-
-# Compiled Python
-*.pyc
-*.pyo
-*.pyd
-
-# Temporary files
-*.tmp
-*.temp
-*~
 ```
