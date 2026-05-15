@@ -12,6 +12,7 @@ htmlcov/
 .env
 .env.local
 .env.*
+!.env.example
 
 # Editors
 .vscode/
@@ -42,3 +43,4 @@ QWEN.md
 AGENTS.md
 RTK.md
 .rtk
+.claude
