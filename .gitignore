@@ -12,6 +12,7 @@ htmlcov/
 .env
 .env.local
 .env.*
+!.env.example
 
 # Editors
 .vscode/
@@ -37,3 +38,4 @@ Thumbs.db
 # Coverage
 .coverage
 ```
+.claude

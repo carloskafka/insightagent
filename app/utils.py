@@ -1,34 +1,46 @@
-import speech_recognition as sr
 from typing import Optional
 import io
+import os
+import tempfile
+
+_whisper_model = None
+
+def _get_model():
+    global _whisper_model
+    if _whisper_model is None:
+        import whisper
+        _whisper_model = whisper.load_model("tiny")
+    return _whisper_model
 
 def speech_to_text(audio_data: bytes, language: str = "en-US") -> Optional[str]:
-    """Convert speech to text using Whisper via speech_recognition"""
-    recognizer = sr.Recognizer()
-    
     try:
-        audio = sr.AudioData(audio_data, sample_rate=16000, sample_width=2)
-        # Using Google's free speech recognition (can be replaced with Whisper API)
-        text = recognizer.recognize_google(audio, language=language)
-        return text
-    except sr.UnknownValueError:
-        return None
-    except sr.RequestError as e:
-        print(f"Speech recognition error: {e}")
+        from pydub import AudioSegment
+        segment = AudioSegment.from_file(io.BytesIO(audio_data))
+        segment = segment.set_frame_rate(16000).set_channels(1).set_sample_width(2)
+
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+            segment.export(f.name, format="wav")
+            tmp = f.name
+
+        try:
+            model = _get_model()
+            lang_code = language.split("-")[0]  # "en-US" -> "en"
+            result = model.transcribe(tmp, language=lang_code, fp16=False)
+            text = result.get("text", "").strip()
+            return text if text else None
+        finally:
+            os.unlink(tmp)
+
+    except Exception as e:
+        print(f"Whisper transcription error: {e}")
         return None
 
 def speech_to_text_from_file(filepath: str, language: str = "en-US") -> Optional[str]:
-    """Convert speech to text from an audio file"""
-    recognizer = sr.Recognizer()
-    
     try:
-        with sr.AudioFile(filepath) as source:
-            audio = recognizer.record(source)
-        
-        text = recognizer.recognize_google(audio, language=language)
-        return text
-    except sr.UnknownValueError:
-        return None
-    except sr.RequestError as e:
-        print(f"Speech recognition error: {e}")
+        model = _get_model()
+        result = model.transcribe(filepath, language=language.split("-")[0], fp16=False)
+        text = result.get("text", "").strip()
+        return text if text else None
+    except Exception as e:
+        print(f"Whisper error: {e}")
         return None

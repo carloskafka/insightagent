@@ -4,7 +4,7 @@ from app.config import OPENROUTER_API_KEY
 
 def stream_llm_response(
     messages: list,
-    model: str = "mistralai/mistral-7b-instruct:free",
+    model: str = "openai/gpt-oss-120b:free",
     temperature: float = 0.7,
     max_tokens: int = 1024
 ) -> Generator[str, None, None]:
@@ -48,7 +48,7 @@ def stream_llm_response(
 
 def get_llm_response(
     messages: list,
-    model: str = "mistralai/mistral-7b-instruct:free",
+    model: str = "openai/gpt-oss-120b:free",
     temperature: float = 0.7,
     max_tokens: int = 1024
 ) -> str:
