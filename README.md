@@ -1,6 +1,6 @@
 # 🤖 InsightAgent
 
-> Full-stack AI chat platform — voice, documents, web search, and more.
+> Full-stack AI chat platform for learning agentic development with Python.
 
 ![Stack](https://img.shields.io/badge/FastAPI-0.100+-009688?style=flat-square&logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/React-18.2-61DAFB?style=flat-square&logo=react&logoColor=black)
@@ -15,13 +15,13 @@
 
 | Feature | Description |
 |---|---|
-| 💬 **AI Chat** | Natural language conversations powered by **Gemini 2.5 Flash** via Google ADK |
-| 🤖 **Agentic Tools** | Agent autonomously decides when to search the web, calculate, or query documents |
-| 🎤 **Voice Input** | Local Whisper transcription — auto-stops on silence detection via Web Audio API |
+| 💬 **AI Chat** | Natural language conversations through a custom Python agent runtime |
+| 🤖 **Agentic Tools** | Agent decides when to search the web, calculate, or use retrieved document context |
+| 🎤 **Voice Input** | Speech-to-text endpoint for voice-based interaction |
 | 🔊 **Text-to-Speech** | Read any message aloud with one click |
 | 📄 **RAG** | Document upload with semantic search via Qdrant + sentence-transformers |
-| 🔍 **Web Search** | Google Custom Search integration (tool available to the agent) |
-| 🧮 **Calculator** | Safe AST-based evaluation of math expressions (agent tool) |
+| 🔍 **Web Search** | Google Custom Search integration available to the platform |
+| 🧮 **Calculator** | Safe expression evaluation inside the agent flow |
 | 🔐 **Authentication** | JWT-based user registration and login |
 | 📝 **History** | Conversations persisted per user in PostgreSQL |
 | ⚡ **WebSocket** | Real-time message channel |
@@ -44,16 +44,16 @@
 ```
 insightagent/
 ├── app/                    # Python backend (FastAPI)
-│   ├── main.py             # Routes and endpoints (async)
-│   ├── adk_agent.py        # Google ADK agent + Gemini runner
-│   ├── tools.py            # ADK tools: web_search, safe_calculate, search_documents_rag
-│   ├── rag.py              # RAG pipeline with Qdrant
-│   ├── auth.py             # JWT + bcrypt
-│   ├── db.py               # SQLAlchemy models (User, Conversation, Message)
-│   ├── memory.py           # Conversation history management
-│   ├── tts.py              # Text-to-speech (gTTS)
-│   ├── utils.py            # Speech-to-text (local Whisper)
-│   ├── rate_limit.py       # Rate limiting middleware (Redis)
+│   ├── agents/            # Agent orchestration and runtime logic
+│   ├── core/              # Config, security, database, factory, middleware
+│   ├── integrations/      # External providers and infrastructure adapters
+│   ├── models/            # SQLAlchemy entities
+│   ├── repositories/      # Persistence logic
+│   ├── routers/           # FastAPI route modules
+│   ├── schemas/           # Request/response models
+│   ├── services/          # Application and use-case logic
+│   ├── adk_agent.py       # Experimental Google ADK agent module
+│   ├── main.py            # ASGI entrypoint
 │   └── requirements.txt
 ├── frontend/               # React 18 + Vite
 │   ├── src/
@@ -70,12 +70,13 @@ insightagent/
 
 **Backend**
 - [FastAPI](https://fastapi.tiangolo.com/) + Uvicorn (async endpoints)
-- [Google ADK](https://github.com/google/adk-python) — agent orchestration framework
-- Gemini 2.5 Flash — LLM (free tier via Google AI Studio)
+- Custom Python agent runtime under `app/agents/`
+- [Google ADK](https://github.com/google/adk-python) experimental module kept in `app/adk_agent.py`
+- OpenRouter-backed LLM integration
 - PostgreSQL + SQLAlchemy (conversation persistence)
 - [Qdrant](https://qdrant.tech/) (vector database for RAG)
 - Redis (cache + rate limiting)
-- [Whisper](https://github.com/openai/whisper) `tiny` model (local transcription, no API needed)
+- SpeechRecognition-based transcription endpoint
 - sentence-transformers `all-MiniLM-L6-v2` (document embeddings)
 
 **Frontend**
@@ -91,25 +92,26 @@ insightagent/
 
 ---
 
-## 🤖 How the ADK agent works
+## 🤖 How the Agent Works
 
-The agent is built with [Google ADK](https://github.com/google/adk-python) and uses **Gemini 2.5 Flash** as the underlying model. On each user message, the agent autonomously decides which tools to invoke:
+The main chat flow currently uses the custom runtime in `app/agents/runtime.py`. On each user message, the backend decides between a few simple capabilities before falling back to the LLM:
 
 ```
 User message
      │
      ▼
- LlmAgent (Gemini 2.5 Flash)
+ Python agent runtime
      │
-     ├── web_search(query)           → Google Custom Search API
-     ├── safe_calculate(expression)  → AST-safe math evaluator
-     └── search_documents_rag(query) → Qdrant semantic search
+     ├── search handling              → Google Custom Search
+     ├── math handling                → safe evaluation
+     ├── RAG context lookup           → Qdrant semantic search
+     └── fallback generation          → LLM response
      │
      ▼
  Final response
 ```
 
-Conversation history is stored in PostgreSQL and injected into each ADK session, so the agent retains memory across server restarts.
+There is also an `app/adk_agent.py` module in the repository as part of my ongoing learning process with Google ADK, but it is not the primary runtime path used by `app.main` today.
 
 ---
 
@@ -118,7 +120,7 @@ Conversation history is stored in PostgreSQL and injected into each ADK session,
 ### Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/) and Docker Compose
-- A [Google AI Studio](https://aistudio.google.com/) API key (free)
+- API keys depending on which integrations you want to enable
 
 ### 1. Clone the repository
 
@@ -136,7 +138,7 @@ cp .env.example .env
 Edit `.env` and fill in:
 
 ```env
-GOOGLE_API_KEY=AIza...          # Google AI Studio key (required)
+OPENROUTER_API_KEY=...          # Main LLM integration
 JWT_SECRET=your-secret-key
 
 # Optional — enables web search tool
@@ -144,13 +146,17 @@ GOOGLE_SEARCH_API_KEY=...
 GOOGLE_CX=...
 ```
 
+If you want to experiment with the separate `app/adk_agent.py` module, you can also provide:
+
+```env
+GOOGLE_API_KEY=...
+```
+
 ### 3. Start the containers
 
 ```bash
 docker compose up --build
 ```
-
-> On the first run, the Whisper `tiny` model (~72 MB) is downloaded automatically during the build and baked into the image.
 
 ### 4. Open in your browser
 
@@ -169,13 +175,13 @@ POST  /signup              Register a new user
 POST  /login               Authenticate (returns JWT)
 GET   /me                  Current user profile
 
-POST  /chat                Send a message (handled by ADK agent)
+POST  /chat                Send a message through the agent runtime
 GET   /conversations       List user conversations
 GET   /conversations/{id}  Get conversation with messages
 DELETE /conversations/{id} Delete a conversation
 
 POST  /upload              Upload document (indexed into RAG)
-POST  /voice               Audio → Whisper → ADK agent → response
+POST  /voice               Audio → speech-to-text → agent → response
 POST  /tts                 Text → audio (mp3)
 
 POST  /rag/add             Add document to vector index
@@ -191,7 +197,8 @@ WS    /ws                  Real-time WebSocket
 
 | Variable | Description | Default |
 |---|---|---|
-| `GOOGLE_API_KEY` | Google AI Studio API key (Gemini) | — |
+| `OPENROUTER_API_KEY` | Main LLM provider key | — |
+| `GOOGLE_API_KEY` | Optional key for the experimental ADK module | — |
 | `JWT_SECRET` | Secret for signing JWT tokens | `supersecretkey` |
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:password@db:5432/chatbot` |
 | `REDIS_URL` | Redis connection string | `redis://redis:6379/0` |
@@ -206,7 +213,7 @@ WS    /ws                  Real-time WebSocket
 ## 🧪 Tests
 
 ```bash
-docker compose exec api pytest
+pytest -q
 ```
 
 ---
