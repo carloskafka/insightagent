@@ -68,23 +68,20 @@ export default function App() {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const formData = new URLSearchParams();
-      formData.append('username', email);
-      formData.append('password', password);
-      
       const response = await fetch('http://localhost:8000/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formData
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setToken(data.access_token);
         localStorage.setItem('token', data.access_token);
         setIsLoggedIn(true);
       } else {
-        alert('Login failed');
+        const err = await response.json();
+        alert(err.detail || 'Login failed');
       }
     } catch (error) {
       console.error('Login error:', error);

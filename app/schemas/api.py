@@ -1,26 +1,32 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional, List
 from datetime import datetime
+from typing import List, Optional
+
+from pydantic import BaseModel, EmailStr
+
 
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
 
+
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
 
 class UserResponse(BaseModel):
     id: int
     email: str
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
+
 
 class MessageCreate(BaseModel):
     content: str
     role: str = "user"
+
 
 class MessageResponse(BaseModel):
     id: int
@@ -28,12 +34,14 @@ class MessageResponse(BaseModel):
     role: str
     content: str
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
+
 class ConversationCreate(BaseModel):
     title: Optional[str] = None
+
 
 class ConversationResponse(BaseModel):
     id: int
@@ -42,22 +50,26 @@ class ConversationResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     messages: Optional[List[MessageResponse]] = []
-    
+
     class Config:
         from_attributes = True
+
 
 class ChatRequest(BaseModel):
     message: str
     conversation_id: Optional[int] = None
+
 
 class ChatResponse(BaseModel):
     response: str
     conversation_id: int
     message_id: int
 
+
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
 
 class UploadResponse(BaseModel):
     filename: str

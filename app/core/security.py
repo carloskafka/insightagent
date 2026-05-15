@@ -1,22 +1,28 @@
 from datetime import datetime, timedelta
 from typing import Optional
-from jose import JWTError, jwt
-from passlib.context import CryptContext
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from passlib.context import CryptContext
 from sqlalchemy.orm import Session
-from app.config import JWT_SECRET, JWT_ALGORITHM, JWT_EXPIRATION_MINUTES
-from app.db import get_db, User
-from app.schemas import Token
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+from app.core.config import JWT_ALGORITHM, JWT_EXPIRATION_MINUTES, JWT_SECRET
+from app.core.database import get_db
+from app.models.entities import User
+
+
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
+
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
+
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
@@ -24,10 +30,10 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(minutes=JWT_EXPIRATION_MINUTES)
-    
+
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
-    return encoded_jwt
+    return jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
 
 def authenticate_user(db: Session, email: str, password: str):
     user = db.query(User).filter(User.email == email).first()
@@ -36,6 +42,7 @@ def authenticate_user(db: Session, email: str, password: str):
     if not verify_password(password, user.hashed_password):
         return False
     return user
+
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     credentials_exception = HTTPException(
@@ -50,7 +57,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    
+
     user = db.query(User).filter(User.email == email).first()
     if user is None:
         raise credentials_exception

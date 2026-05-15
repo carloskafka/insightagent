@@ -63,7 +63,7 @@ def signup(user_data: UserCreate, db: Session = Depends(get_db)):
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
-    
+
     new_user = User(
         email=user_data.email,
         hashed_password=get_password_hash(user_data.password)
@@ -82,7 +82,7 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     access_token = create_access_token(
         data={"sub": user.email},
         expires_delta=timedelta(minutes=JWT_EXPIRATION_MINUTES)
@@ -97,20 +97,20 @@ def get_me(current_user: User = Depends(get_current_user)):
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     conversation = get_or_create_conversation(db, current_user.id, request.conversation_id)
-    
+
     # Add user message
     user_message = add_message(db, conversation.id, "user", request.message)
-    
+
     # Get conversation history for context
     history = get_conversation_history(db, conversation.id, limit=10)
     messages = [{"role": m.role, "content": m.content} for m in history]
-    
+
     # Get agent response
     response_text = agent(request.message)
-    
+
     # Add assistant message
     assistant_message = add_message(db, conversation.id, "assistant", response_text)
-    
+
     return ChatResponse(
         response=response_text,
         conversation_id=conversation.id,
@@ -128,10 +128,10 @@ def get_conversation(conversation_id: int, db: Session = Depends(get_db), curren
         Conversation.id == conversation_id,
         Conversation.user_id == current_user.id
     ).first()
-    
+
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    
+
     return conversation
 
 @app.delete("/conversations/{conversation_id}")
@@ -145,11 +145,11 @@ def delete_conv(conversation_id: int, db: Session = Depends(get_db), current_use
 @app.post("/upload", response_model=UploadResponse)
 def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     file_path = os.path.join(UPLOAD_DIR, file.filename)
-    
+
     with open(file_path, "wb") as buffer:
         content = file.file.read()
         buffer.write(content)
-    
+
     # Process file for RAG
     try:
         text_content = content.decode('utf-8')
@@ -158,7 +158,7 @@ def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db), cur
         rag_pipeline.add_documents_batch(chunks, metadatas=[{"filename": file.filename, "user_id": current_user.id}] * len(chunks))
     except:
         pass  # Binary files or non-text files
-    
+
     return UploadResponse(filename=file.filename, path=file_path)
 
 # Voice endpoints
@@ -166,16 +166,16 @@ def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db), cur
 def voice_message(audio: UploadFile = File(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     audio_data = audio.file.read()
     text = speech_to_text(audio_data)
-    
+
     if not text:
         raise HTTPException(status_code=400, detail="Could not transcribe audio")
-    
+
     conversation = get_or_create_conversation(db, current_user.id)
     add_message(db, conversation.id, "user", text)
-    
+
     response_text = agent(text)
     add_message(db, conversation.id, "assistant", response_text)
-    
+
     return {"text": text, "response": response_text, "conversation_id": conversation.id}
 
 @app.post("/tts")
@@ -191,22 +191,22 @@ def text_to_speech_endpoint(text: str, lang: str = "en"):
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    
+
     try:
         while True:
             data = await websocket.receive_text()
-            
+
             try:
                 request_data = json.loads(data)
                 message = request_data.get("message", "")
-                
+
                 if message:
                     response_text = agent(message)
                     await websocket.send_json({"response": response_text})
             except json.JSONDecodeError:
                 response_text = agent(data)
                 await websocket.send_json({"response": response_text})
-    
+
     except WebSocketDisconnect:
         print("Client disconnected")
 
